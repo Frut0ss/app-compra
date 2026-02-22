@@ -213,7 +213,7 @@
     }
 
     .item-row.done {
-      opacity: 0.45;
+      opacity: 0.5;
       border-color: transparent;
     }
 
@@ -241,6 +241,26 @@
       background: var(--accent2);
       border-color: var(--accent2);
       color: #0f0e0c;
+    }
+
+    /* Gastado button — shown only on done rows */
+    .spent-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 3px 9px;
+      border-radius: 99px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .spent-btn:hover {
+      border-color: var(--accent3);
+      color: var(--accent3);
     }
 
     .item-name {
@@ -447,7 +467,24 @@
       font-size: 0.85rem;
       color: var(--text-muted);
       line-height: 1.55;
+      margin-bottom: 12px;
     }
+
+    .recipe-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.78rem;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(232,197,71,0.3);
+      padding-bottom: 1px;
+      transition: border-color 0.15s, opacity 0.15s;
+    }
+    .recipe-link:hover { opacity: 0.75; border-color: var(--accent); }
 
     /* ─── Loading spinner ─────────────────────────── */
     .spinner {
@@ -605,7 +642,7 @@ function addShopItem() {
   const qty   = document.getElementById('shop-qty');
   const name  = input.value.trim();
   if (!name) return;
-  state.shop.push({ id: Date.now(), name, qty: qty.value.trim() || '', done: false });
+  state.shop.push({ id: Date.now(), name, qty: qty.value.trim() || '', status: 'pending' });
   input.value = '';
   qty.value = '';
   save();
@@ -615,7 +652,16 @@ function addShopItem() {
 
 function toggleShopItem(id) {
   const item = state.shop.find(i => i.id === id);
-  if (item) item.done = !item.done;
+  if (!item) return;
+  // pending -> done -> pending (cycling between two states via checkbox)
+  item.status = item.status === 'done' ? 'pending' : 'done';
+  save();
+  renderShop();
+}
+
+function spendShopItem(id) {
+  // Mark as spent -> remove from list
+  state.shop = state.shop.filter(i => i.id !== id);
   save();
   renderShop();
 }
@@ -627,8 +673,11 @@ function deleteShopItem(id) {
 }
 
 function renderShop() {
-  const pending = state.shop.filter(i => !i.done);
-  const done    = state.shop.filter(i => i.done);
+  // Migrate old items that used done:bool
+  state.shop.forEach(i => { if (i.status === undefined) i.status = i.done ? 'done' : 'pending'; });
+
+  const pending = state.shop.filter(i => i.status === 'pending');
+  const done    = state.shop.filter(i => i.status === 'done');
   const total   = state.shop.length;
 
   // Stats
@@ -664,11 +713,13 @@ function renderItemList(elId, items, type) {
       : '';
     return;
   }
+  const isDoneList = elId.includes('done');
   ul.innerHTML = items.map(item => `
-    <li class="item-row ${item.done ? 'done' : ''}">
+    <li class="item-row ${item.status === 'done' ? 'done' : ''}">
       <button class="check-btn" onclick="toggle${capitalize(type)}Item(${item.id})" title="Marcar">✓</button>
       <span class="item-name">${escHtml(item.name)}</span>
       ${item.qty ? `<span class="item-qty">${escHtml(item.qty)}</span>` : ''}
+      ${isDoneList && type === 'shop' ? `<button class="spent-btn" onclick="spendShopItem(${item.id})" title="Marcar como gastado">🍳 Gastado</button>` : ''}
       <button class="delete-btn" onclick="delete${capitalize(type)}Item(${item.id})" title="Eliminar">✕</button>
     </li>
   `).join('');
@@ -722,7 +773,7 @@ async function getRecipes(source) {
   let context = source;
 
   if (source === 'shop') {
-    items = state.shop.filter(i => i.done).map(i => i.name);
+    items = state.shop.filter(i => i.status === 'done').map(i => i.name);
     if (!items.length) items = state.shop.map(i => i.name);
   } else {
     items = [...state.fridge.map(i => i.name), ...state.freezer.map(i => i.name)];
@@ -776,6 +827,9 @@ function renderRecipes(container, recipes) {
     return map[d?.toLowerCase()] || 'easy';
   };
 
+  const googleUrl = (query) =>
+    `https://www.google.com/search?q=${encodeURIComponent((query || '') + ' receta')}`;
+
   container.innerHTML = `
     <div class="recipes-title">🍽️ Recetas sugeridas para esta semana</div>
     <div class="recipe-cards">
@@ -787,6 +841,9 @@ function renderRecipes(container, recipes) {
             <span class="recipe-tag tag-${diffClass(r.difficulty)}">${escHtml(r.difficulty || '—')}</span>
           </div>
           <div class="recipe-desc">${escHtml(r.description)}</div>
+          <a class="recipe-link" href="${googleUrl(r.search_query || r.name)}" target="_blank" rel="noopener">
+            Ver receta completa →
+          </a>
         </div>
       `).join('')}
     </div>
