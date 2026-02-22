@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Despensa — Lista inteligente</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0e0c;
+      --surface: #1a1916;
+      --surface2: #232220;
+      --border: #2e2c29;
+      --accent: #e8c547;
+      --accent2: #4ecb8d;
+      --accent3: #e8774e;
+      --text: #f0ede8;
+      --text-muted: #7a7872;
+      --text-dim: #4a4845;
+      --radius: 14px;
+      --radius-sm: 8px;
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ─── Layout ─────────────────────────────────── */
+    .app-wrapper {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 20px 80px;
+    }
+
+    /* ─── Header ─────────────────────────────────── */
+    header {
+      padding: 48px 0 32px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 2rem;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    .logo span {
+      color: var(--accent);
+    }
+
+    .header-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ─── Tabs ────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) + 2px);
+      padding: 5px;
+      margin-bottom: 28px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .tab-btn.active {
+      background: var(--surface2);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    .tab-btn:hover:not(.active) {
+      color: var(--text);
+    }
+
+    .tab-icon { font-size: 1rem; }
+
+    /* ─── Panel ───────────────────────────────────── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ─── Add item row ────────────────────────────── */
+    .add-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .add-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .add-input:focus {
+      border-color: var(--accent);
+    }
+
+    .add-input::placeholder { color: var(--text-dim); }
+
+    .qty-input {
+      width: 72px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 10px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .qty-input:focus { border-color: var(--accent); }
+
+    .add-btn {
+      background: var(--accent);
+      color: #0f0e0c;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 12px 20px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .add-btn:hover { opacity: 0.88; }
+    .add-btn:active { transform: scale(0.97); }
+
+    /* ─── Section title ───────────────────────────── */
+    .section-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    /* ─── Item list ───────────────────────────────── */
+    .item-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 28px;
+    }
+
+    .item-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      transition: border-color 0.2s, opacity 0.2s;
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .item-row.done {
+      opacity: 0.45;
+      border-color: transparent;
+    }
+
+    .item-row.done .item-name { text-decoration: line-through; }
+
+    .check-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      font-size: 0.7rem;
+      color: transparent;
+    }
+
+    .check-btn:hover { border-color: var(--accent2); }
+
+    .item-row.done .check-btn {
+      background: var(--accent2);
+      border-color: var(--accent2);
+      color: #0f0e0c;
+    }
+
+    .item-name {
+      flex: 1;
+      font-size: 0.95rem;
+    }
+
+    .item-qty {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      background: var(--surface2);
+      border-radius: 4px;
+      padding: 2px 8px;
+    }
+
+    .delete-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 4px;
+      border-radius: 4px;
+      transition: color 0.15s;
+      line-height: 1;
+    }
+
+    .delete-btn:hover { color: var(--accent3); }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      padding: 40px 0;
+    }
+
+    /* ─── Stats bar ───────────────────────────────── */
+    .stats-bar {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .stat-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .stat-pill strong { color: var(--text); font-weight: 500; }
+
+    /* ─── Fridge sections ─────────────────────────── */
+    .fridge-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    @media (max-width: 600px) {
+      .fridge-grid { grid-template-columns: 1fr; }
+    }
+
+    .fridge-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+
+    .fridge-section-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .fridge-add-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .fridge-add-row .add-input { font-size: 0.85rem; padding: 9px 12px; }
+    .fridge-add-row .qty-input { width: 58px; font-size: 0.85rem; padding: 9px 8px; }
+    .fridge-add-row .add-btn { padding: 9px 14px; font-size: 0.8rem; }
+
+    .fridge-item-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+
+    .fridge-item-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--surface2);
+      animation: slideIn 0.2s ease;
+    }
+
+    .fridge-item-row .item-name { font-size: 0.88rem; }
+    .fridge-item-row .item-qty { font-size: 0.75rem; }
+
+    /* ─── Recipe button ───────────────────────────── */
+    .recipe-trigger-area {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    .recipe-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent) 0%, #d4a82a 100%);
+      color: #0f0e0c;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 14px 24px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .recipe-btn:hover { opacity: 0.88; }
+    .recipe-btn:active { transform: scale(0.99); }
+    .recipe-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ─── Recipes output ──────────────────────────── */
+    .recipes-output {
+      margin-top: 24px;
+    }
+
+    .recipes-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: var(--accent);
+    }
+
+    .recipe-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 600px) {
+      .recipe-cards { grid-template-columns: 1fr; }
+    }
+
+    .recipe-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      animation: slideIn 0.3s ease both;
+    }
+
+    .recipe-card:nth-child(2) { animation-delay: 0.06s; }
+    .recipe-card:nth-child(3) { animation-delay: 0.12s; }
+    .recipe-card:nth-child(4) { animation-delay: 0.18s; }
+
+    .recipe-card-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+
+    .recipe-meta {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .recipe-tag {
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 99px;
+      font-weight: 500;
+    }
+
+    .tag-time { background: rgba(232, 197, 71, 0.15); color: var(--accent); }
+    .tag-easy { background: rgba(78, 203, 141, 0.15); color: var(--accent2); }
+    .tag-medium { background: rgba(232, 119, 78, 0.15); color: var(--accent3); }
+    .tag-hard { background: rgba(200, 80, 80, 0.15); color: #e85555; }
+
+    .recipe-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    /* ─── Loading spinner ─────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(15,14,12,0.3);
+      border-top-color: #0f0e0c;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg {
+      background: rgba(232, 119, 78, 0.1);
+      border: 1px solid rgba(232, 119, 78, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      color: var(--accent3);
+      font-size: 0.88rem;
+      margin-top: 16px;
+    }
+
+    /* ─── Progress bar ────────────────────────────── */
+    .progress-bar-wrap {
+      height: 3px;
+      background: var(--surface2);
+      border-radius: 99px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent2);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+  </style>
+</head>
+<body>
+<div class="app-wrapper">
+
+  <!-- Header -->
+  <header>
+    <div>
+      <div class="logo">Des<span>pensa</span></div>
+    </div>
+    <div class="header-sub">Lista inteligente</div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('shop')">
+      <span class="tab-icon">🛒</span> Compra
+    </button>
+    <button class="tab-btn" onclick="switchTab('fridge')">
+      <span class="tab-icon">🧊</span> Inventario
+    </button>
+  </div>
+
+  <!-- ── PANEL: COMPRA ─────────────────────────────── -->
+  <div id="panel-shop" class="panel active">
+
+    <div class="add-row">
+      <input class="add-input" id="shop-input" type="text" placeholder="Añadir producto..." onkeydown="if(event.key==='Enter') addShopItem()" />
+      <input class="qty-input" id="shop-qty" type="text" placeholder="Cant." />
+      <button class="add-btn" onclick="addShopItem()">+ Añadir</button>
+    </div>
+
+    <div class="stats-bar" id="shop-stats"></div>
+
+    <div class="progress-bar-wrap" id="shop-progress-wrap" style="display:none">
+      <div class="progress-bar-fill" id="shop-progress-fill"></div>
+    </div>
+
+    <p class="section-label">Por comprar</p>
+    <ul class="item-list" id="shop-list-pending"></ul>
+
+    <p class="section-label" id="shop-done-label" style="display:none">Comprado ✓</p>
+    <ul class="item-list" id="shop-list-done"></ul>
+
+    <div class="recipe-trigger-area">
+      <button class="recipe-btn" id="shop-recipe-btn" onclick="getRecipes('shop')">
+        ✨ Sugerir recetas para la semana
+      </button>
+      <div id="shop-recipes-output" class="recipes-output"></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: INVENTARIO ─────────────────────────── -->
+  <div id="panel-fridge" class="panel">
+
+    <div class="fridge-grid">
+      <!-- Nevera -->
+      <div class="fridge-section">
+        <div class="fridge-section-title">🌡️ Nevera</div>
+        <div class="fridge-add-row">
+          <input class="add-input" id="fridge-input" type="text" placeholder="Producto..." onkeydown="if(event.key==='Enter') addFridgeItem('fridge')" />
+          <input class="qty-input" id="fridge-qty" type="text" placeholder="Cant." />
+          <button class="add-btn" onclick="addFridgeItem('fridge')">+</button>
+        </div>
+        <ul class="item-list fridge-item-list" id="fridge-list"></ul>
+      </div>
+
+      <!-- Congelador -->
+      <div class="fridge-section">
+        <div class="fridge-section-title">❄️ Congelador</div>
+        <div class="fridge-add-row">
+          <input class="add-input" id="freezer-input" type="text" placeholder="Producto..." onkeydown="if(event.key==='Enter') addFridgeItem('freezer')" />
+          <input class="qty-input" id="freezer-qty" type="text" placeholder="Cant." />
+          <button class="add-btn" onclick="addFridgeItem('freezer')">+</button>
+        </div>
+        <ul class="item-list fridge-item-list" id="freezer-list"></ul>
+      </div>
+    </div>
+
+    <div class="recipe-trigger-area">
+      <button class="recipe-btn" id="fridge-recipe-btn" onclick="getRecipes('fridge')">
+        🍳 Sugerir recetas con mi inventario
+      </button>
+      <div id="fridge-recipes-output" class="recipes-output"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── State ─────────────────────────────────────────
+const state = {
+  shop: JSON.parse(localStorage.getItem('despensa_shop') || '[]'),
+  fridge: JSON.parse(localStorage.getItem('despensa_fridge') || '[]'),
+  freezer: JSON.parse(localStorage.getItem('despensa_freezer') || '[]'),
+};
+
+function save() {
+  localStorage.setItem('despensa_shop', JSON.stringify(state.shop));
+  localStorage.setItem('despensa_fridge', JSON.stringify(state.fridge));
+  localStorage.setItem('despensa_freezer', JSON.stringify(state.freezer));
+}
+
+// ─── Tabs ───────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && tab === 'shop') || (i === 1 && tab === 'fridge'));
+  });
+  document.getElementById('panel-shop').classList.toggle('active', tab === 'shop');
+  document.getElementById('panel-fridge').classList.toggle('active', tab === 'fridge');
+}
+
+// ─── Shop ───────────────────────────────────────────
+function addShopItem() {
+  const input = document.getElementById('shop-input');
+  const qty   = document.getElementById('shop-qty');
+  const name  = input.value.trim();
+  if (!name) return;
+  state.shop.push({ id: Date.now(), name, qty: qty.value.trim() || '', done: false });
+  input.value = '';
+  qty.value = '';
+  save();
+  renderShop();
+  input.focus();
+}
+
+function toggleShopItem(id) {
+  const item = state.shop.find(i => i.id === id);
+  if (item) item.done = !item.done;
+  save();
+  renderShop();
+}
+
+function deleteShopItem(id) {
+  state.shop = state.shop.filter(i => i.id !== id);
+  save();
+  renderShop();
+}
+
+function renderShop() {
+  const pending = state.shop.filter(i => !i.done);
+  const done    = state.shop.filter(i => i.done);
+  const total   = state.shop.length;
+
+  // Stats
+  const stats = document.getElementById('shop-stats');
+  stats.innerHTML = total
+    ? `<div class="stat-pill">Total <strong>${total}</strong></div>
+       <div class="stat-pill">Por comprar <strong>${pending.length}</strong></div>
+       <div class="stat-pill">Comprado <strong>${done.length}</strong></div>`
+    : '';
+
+  // Progress bar
+  const pWrap = document.getElementById('shop-progress-wrap');
+  const pFill = document.getElementById('shop-progress-fill');
+  if (total) {
+    pWrap.style.display = 'block';
+    pFill.style.width = `${Math.round((done.length / total) * 100)}%`;
+  } else {
+    pWrap.style.display = 'none';
+  }
+
+  // Lists
+  renderItemList('shop-list-pending', pending, 'shop');
+  renderItemList('shop-list-done', done, 'shop');
+
+  document.getElementById('shop-done-label').style.display = done.length ? 'block' : 'none';
+}
+
+function renderItemList(elId, items, type) {
+  const ul = document.getElementById(elId);
+  if (!items.length) {
+    ul.innerHTML = type === 'shop' && elId.includes('pending')
+      ? `<li class="empty-state">Lista vacía — añade algo arriba 🛒</li>`
+      : '';
+    return;
+  }
+  ul.innerHTML = items.map(item => `
+    <li class="item-row ${item.done ? 'done' : ''}">
+      <button class="check-btn" onclick="toggle${capitalize(type)}Item(${item.id})" title="Marcar">✓</button>
+      <span class="item-name">${escHtml(item.name)}</span>
+      ${item.qty ? `<span class="item-qty">${escHtml(item.qty)}</span>` : ''}
+      <button class="delete-btn" onclick="delete${capitalize(type)}Item(${item.id})" title="Eliminar">✕</button>
+    </li>
+  `).join('');
+}
+
+// ─── Fridge / Freezer ──────────────────────────────
+function addFridgeItem(section) {
+  const input = document.getElementById(`${section}-input`);
+  const qty   = document.getElementById(`${section}-qty`);
+  const name  = input.value.trim();
+  if (!name) return;
+  state[section].push({ id: Date.now(), name, qty: qty.value.trim() || '' });
+  input.value = '';
+  qty.value = '';
+  save();
+  renderFridge();
+  input.focus();
+}
+
+function deleteFridgeItem(id) {
+  state.fridge = state.fridge.filter(i => i.id !== id);
+  state.freezer = state.freezer.filter(i => i.id !== id);
+  save();
+  renderFridge();
+}
+
+// dummy toggles for template (fridge items don't need toggle but we need the function)
+function toggleFridgeItem() {}
+
+function renderFridge() {
+  ['fridge', 'freezer'].forEach(section => {
+    const ul = document.getElementById(`${section}-list`);
+    const items = state[section];
+    if (!items.length) {
+      ul.innerHTML = `<li style="color:var(--text-dim);font-size:0.82rem;padding:8px 4px;">Sin items aún</li>`;
+      return;
+    }
+    ul.innerHTML = items.map(item => `
+      <li class="item-row fridge-item-row">
+        <span class="item-name" style="flex:1">${escHtml(item.name)}</span>
+        ${item.qty ? `<span class="item-qty">${escHtml(item.qty)}</span>` : ''}
+        <button class="delete-btn" onclick="deleteFridgeItem(${item.id})" title="Eliminar">✕</button>
+      </li>
+    `).join('');
+  });
+}
+
+// ─── Recipes ────────────────────────────────────────
+async function getRecipes(source) {
+  let items = [];
+  let context = source;
+
+  if (source === 'shop') {
+    items = state.shop.filter(i => i.done).map(i => i.name);
+    if (!items.length) items = state.shop.map(i => i.name);
+  } else {
+    items = [...state.fridge.map(i => i.name), ...state.freezer.map(i => i.name)];
+  }
+
+  if (!items.length) {
+    const outputEl = document.getElementById(`${source}-recipes-output`);
+    outputEl.innerHTML = `<div class="error-msg">Añade algunos productos primero para obtener sugerencias.</div>`;
+    return;
+  }
+
+  const btn = document.getElementById(`${source}-recipe-btn`);
+  const outputEl = document.getElementById(`${source}-recipes-output`);
+
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Generando recetas...`;
+  outputEl.innerHTML = '';
+
+  try {
+    const res = await fetch('/api/recipes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items, context })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      outputEl.innerHTML = `<div class="error-msg">⚠️ ${data.error || 'Error desconocido'}</div>`;
+    } else {
+      renderRecipes(outputEl, data.recipes);
+    }
+  } catch (e) {
+    outputEl.innerHTML = `<div class="error-msg">⚠️ Error de conexión: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = source === 'shop'
+      ? '✨ Sugerir recetas para la semana'
+      : '🍳 Sugerir recetas con mi inventario';
+  }
+}
+
+function renderRecipes(container, recipes) {
+  if (!recipes || !recipes.length) {
+    container.innerHTML = `<div class="error-msg">No se encontraron recetas. Intenta de nuevo.</div>`;
+    return;
+  }
+
+  const diffClass = d => {
+    const map = { fácil: 'easy', facil: 'easy', media: 'medium', difícil: 'hard', dificil: 'hard' };
+    return map[d?.toLowerCase()] || 'easy';
+  };
+
+  container.innerHTML = `
+    <div class="recipes-title">🍽️ Recetas sugeridas para esta semana</div>
+    <div class="recipe-cards">
+      ${recipes.map(r => `
+        <div class="recipe-card">
+          <div class="recipe-card-name">${escHtml(r.name)}</div>
+          <div class="recipe-meta">
+            <span class="recipe-tag tag-time">⏱ ${escHtml(r.time || '—')}</span>
+            <span class="recipe-tag tag-${diffClass(r.difficulty)}">${escHtml(r.difficulty || '—')}</span>
+          </div>
+          <div class="recipe-desc">${escHtml(r.description)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ─── Utils ──────────────────────────────────────────
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// ─── Init ────────────────────────────────────────────
+renderShop();
+renderFridge();
+</script>
+</body>
+</html>
