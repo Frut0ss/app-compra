@@ -5,13 +5,13 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Proxy para Claude API (evita exponer la key en el frontend)
+// Proxy para OpenAI API (evita exponer la key en el frontend)
 app.post('/api/recipes', async (req, res) => {
   const { items, context } = req.body;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'API key no configurada. Añade ANTHROPIC_API_KEY en las variables de entorno de Vercel.' });
+    return res.status(500).json({ error: 'API key no configurada. Añade OPENAI_API_KEY en las variables de entorno de Vercel.' });
   }
 
   const prompt = context === 'fridge'
@@ -27,17 +27,26 @@ app.post('/api/recipes', async (req, res) => {
        {"recipes": [{"name": "...", "time": "...", "difficulty": "...", "description": "..."}]}`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'gpt-4o-mini',
         max_tokens: 1024,
-        messages: [{ role: 'user', content: prompt }]
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: 'Eres un asistente de cocina. Siempre respondes únicamente con JSON válido, sin texto adicional.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
       })
     });
 
@@ -47,7 +56,7 @@ app.post('/api/recipes', async (req, res) => {
       return res.status(response.status).json({ error: data.error?.message || 'Error de API' });
     }
 
-    const text = data.content[0].text;
+    const text = data.choices[0].message.content;
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
